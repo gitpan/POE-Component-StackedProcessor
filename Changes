@@ -1,6 +1,12 @@
 Changes
 =======
 
+0.03 - 1 Jan 2004 "Don't ask why I'm coding on New Year's" Release
+  - Make stacking more flexible (allow FSA-ish processing)
+    This broke the interface again.
+  - Previous release for some reason didn't include a Makefile.PL.
+    Now bundled correctly
+
 0.02 - 24 Dec 2004
   - Changed interface completely
 

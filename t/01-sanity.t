@@ -1,4 +1,9 @@
 #!perl
+# $Id: 01-sanity.t 6 2005-01-01 11:40:50Z daisuke $
+#
+# Daisuke Maki <dmaki@cpan.org>
+# All rights reserved.
+
 use strict;
 use Test::More qw(no_plan);
 BEGIN { use_ok("POE::Component::StackedProcessor"); }
@@ -9,7 +14,6 @@ sub new { bless {}, shift }
 sub process {
     my $self  = shift;
     my $input = shift;
-
     $input->{text} =~s/x//ig;
     return 1;
 }
@@ -20,6 +24,7 @@ sub new { bless {}, shift }
 sub process {
     my $self  = shift;
     my $input = shift;
+
     return length($input->{text}) <= 8;
 }
         
@@ -29,26 +34,28 @@ use strict;
 use POE;
 
 my @inputs = (
-    { ok_to_fail => 1, text => 'axbxcxdxexfxgxhxixjxk' },
-    { ok_to_fail => 0, text => ' axxb' }
+    { ok_to_fail => 1, text => 'axbxcxdxexfxgxhxixjxk', fail_index => 1 },
+    { ok_to_fail => 0, text => 'axxb' }
 );
 my $nox  = NoX->new;
 my $chr  = EightChars->new;
 
-POE::Component::StackedProcessor->new(
+my $p    = POE::Component::StackedProcessor->new(
     Alias => "sp",
-    Processors => [ $nox, $chr ],
     InlineStates => {
         success => \&success,
         failure => \&failure,
     }
 );
 
+$p->add(NOX => $nox);
+$p->add(CHR => $chr);
+
 sub success
 {
     my($response) = @_[ARG1];
     my $input = $response->[0];
-    ok(!$input->{ok_to_fail}, "Processed input");
+    ok(!$input->{ok_to_fail}, "Processed input (success)");
     ok($input->{text} !~ /x/, "No X's");
     ok(length($input->{text}) <= 8, "Less than 8 chars");
 }
@@ -56,8 +63,11 @@ sub success
 sub failure
 {
     my($response) = @_[ARG1];
-    my $input = $response->[0];
-    ok($input->{ok_to_fail}, "Processed input");
+    my($pr, $prdata, $input) = @$response;
+    ok($input->{ok_to_fail}, "Processed input (failure)");
+
+    ok($input->{ok_to_fail} &&
+        $prdata->{index} == $input->{fail_index}, "Failure index match");
 }
 
 foreach my $input (@inputs) {

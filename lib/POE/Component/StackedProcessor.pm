@@ -1,17 +1,18 @@
-# $Id: StackedProcessor.pm 3 2004-12-24 03:59:51Z daisuke $
+# $Id: StackedProcessor.pm 6 2005-01-01 11:40:50Z daisuke $
 #
 # Daisuke Maki <dmaki@cpan.org>
 # All rights reserved.
 
 package POE::Component::StackedProcessor;
 use strict;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 use base qw(Class::Data::Inheritable);
 use Class::MethodMaker
     new_with_init  => 'new',
     new_hash_init  => 'hash_init',
-    list           => [ qw(alias processors) ],
-    get_set        => [ qw(on_success on_failure) ],
+    list           => [ qw(processor_list) ],
+    hash           => [ qw(processors) ],
+    get_set        => [ qw(alias) ],
 ;
 use Params::Validate ();
 use POE;
@@ -34,6 +35,12 @@ sub _InitArgNormalizer
     $_[0];
 }
 
+sub _DefaultDecisionMaker
+{
+    my($sp, $pr, $value) = @_;
+    $value ? $pr->{index} + 1 : undef;
+}
+
 sub init
 {
     my $self = shift;
@@ -51,7 +58,7 @@ sub init
         );
     }
 
-    my $alias   = delete $args{alias};
+    my $alias   = $args{alias};
     my $pr_args = delete $args{processor_args};
 
     my %states = (
@@ -94,23 +101,60 @@ sub _stop
 
 sub process
 {
-    my($self, $kernel, $session, $success_evt, $failure_evt, $input) =
-        @_[OBJECT, KERNEL, SESSION, ARG0, ARG1, ARG2];
+    my($self, $kernel, $session, $sender, $success_evt, $failure_evt, $input) =
+        @_[OBJECT, KERNEL, SESSION, SENDER, ARG0, ARG1, ARG2];
+
+    if ($self->processor_list_count <= 0) {
+        # Hmm, process was called without any processors being
+        # added. Let this pass, but generate a warning
+        if ($^W) {
+            warn "No processors defined for stacked processor. Passing anyway";
+        }
+        return $_[SENDER]->postback($success_evt, $input)->();
+    }
+
+    my($success_cb, $failure_cb);
+    if ($sender->isa('POE::Kernel')) {
+        # got to be a call to the current session
+        $success_cb = $session->postback($success_evt, $input);
+        $failure_cb = $session->postback($failure_evt, $input);
+    } else {
+        $success_cb = $sender->postback($success_evt, $input);
+        $failure_cb = $sender->postback($failure_evt, $input);
+    }
+
+    # Always start from the first one on the list
+    my $data = $self->processor_list_index(0);
 
     $kernel->yield(
         'run_processor',
-        $session->postback($success_evt, $input), 
-        $session->postback($failure_evt, $input),
+        $success_cb,
+        $failure_cb,
         $input,
-        0
+        $data
     );
+}
+
+sub add
+{
+    my($self, $name, $processor, $dm) = @_;
+
+    my $data = {
+        name      => $name,
+        processor => $processor,
+        dm        => $dm || \&_DefaultDecisionMaker,
+        index     => $self->processor_list_count,
+    };
+    $self->processor_list_push($data);
+    $self->processors($name, $data);
 }
 
 sub run_processor
 {
-    my($self, $kernel, $success_evt, $failure_evt, $input, $pr_idx) =
+    my($self, $kernel, $success_evt, $failure_evt, $input, $prdata) =
         @_[OBJECT, KERNEL, ARG0, ARG1, ARG2, ARG3, ARG4];
-    my $pr    = $self->processors_index($pr_idx);
+
+    my $pr    = $prdata->{processor};
     my $cb    = $self->callback_name();
     my $ret   = eval {
         # XXX - need to figure out what to pass to this guy
@@ -118,13 +162,19 @@ sub run_processor
     };
     warn if $@;
 
-    if ($@ || !$ret) {
+    my $next_id   = $prdata->{dm}->($self, $prdata, $ret);
+
+    if ($@ || !defined $next_id) {
         warn if $@;
-        $failure_evt->($input);
+# XXX - think about what to pass to the failure state. I presume that
+# users may want to know at which state the process failed
+        $failure_evt->($self, $prdata, $input);
     } else {
-        my $next = $pr_idx + 1;
-        if ($self->processors_count() > $next) {
-            $kernel->yield('run_processor', $success_evt, $failure_evt, $input, $next);
+        my $next_data = $next_id =~ /\D/ ?
+            $self->processors($next_id) : $self->processor_list_index($next_id);
+
+        if ($next_data) {
+            $kernel->yield('run_processor', $success_evt, $failure_evt, $input, $next_data);
         } else {
             $success_evt->($input);
         }
@@ -142,14 +192,16 @@ POE::Component::StackedProcessor - Stacked Processors In POE
 =head1 SYNOPSIS
 
   use POE::Component::StackedProcessor;
-  POE::Component::StackedProcessor->new(
+  my $p = POE::Component::StackedProcessor->new(
     Alias      => $alias,
-    Processors => [ $proc1, $proc2, $proc3 ],
     InlineStates => {  # or PackageStates/ObjectStates
       success => \&success_cb,
       failure => \&failure_cb
     }
   );
+  $p->add(state1 => $proc1);
+  $p->add(state2 => $proc2, $decision);
+  $p->add(state3 => $proc3);
   POE::Kernel->run();
 
   # else where in the code...
@@ -165,72 +217,88 @@ For example, suppose you have an HTML document that requires you to verify
 whethere it meats certain criteria such as proper markup, valid links, etc.
 Normally this would be done in one pass for the sake of efficiency, but
 sometimes you want to break these steps up into several components such that
-you can mix and match the differnt processors as required.
+you can mix and match the different processors as required.
 
-The basic steps to creating a stacked processor is as follows:
+In a very simple stacked processor where the processors are run in linear 
+fashion, all you need to do is to create the processor, and then add the
+states in the order that you want them to be executed:
 
-=over 4
-
-=item 1. Create some processors
-
-These are just simple objects that have a method called "process". The method
-should take exactly one parameter, which is the "thing" being processed,
-whatever it may be. It must return a true value upon successful execution.
-If an exception is thrown or the method returns a false value, the processing
-is terminated right there and then, and the failure event will be called.
-
-Once you define these processors, pass them to the Processors argument to
-new(), in the order that you want them executed:
-
-  POE::Component::StackedProcessor->new(
-    ...
-    Processors => [ $p1, $p2, $p3 ... ]
-  );
-
-=item 2. Define success and failure events
-
-You need to define success and failure events so that upon completion of
-executing the processors, you can do some post processing. You specify
-which states get called.
-
-  # Calling from outside a POE session:
-  sub success_cb { ... }
-  sub failure_cb { ... }
-  POE::Component::StackedProcessor->new(
-    ...,
-    InlineStates => {  # or PackageStates/ObjectStates
-      success => \&success_cb,
-      failure => \&failure_cb
-    }
-  );
-
-Because the success/failure events are invoked via POE::Kernel's post() method,
-they will receive the "request" and "response" arguments in ARG0 and ARG1,
-which are arrayrefs:
-
-  sub success_cb {
-    my($response, $response) = @_[ARG0, ARG1];
-    # whatever that got passed to process() is in $response-E<gt>[0];
+  use POE::Component::StackedProcessor;
+  sub success_state {
+    my($response) = @_[ARG1];
     ...
   }
 
-=item 3. Send some data to be processed
+  sub failure_state {
+    my($response) = @_[ARG1];
+    ...
+  }
 
-Once you've set up the processors and the success/failure states,
-send some data to the StackedProcessor session via POE::Kernel->post()
-
-  POE::Kernel->post(
-    $alias_of_stacked_processor,
-    'process', # this is always the same
-    $success_event,
-    $failure_event,
-    $arg_to_process
+  my $p = POE::Component::StackedProcessor->new(
+    Alias        => $alias,
+    InlineStates => {
+      success => \&success_state,
+      failure => \&failure_state,
+    }
   );
 
-If all processors complete execution successfully, $success_event will be
-called. Otherwise $failure_event gets called.
+  my $p1 = MyProcessor1->new();
+  my $p2 = MyProcessor2->new();
+  my $p3 = MyProcessor3->new();
 
-=back
+  $p->add($name1, $p1);
+  $p->add($name2, $p2);
+  $p->add($name3, $p3);
+
+  POE::Kernel->post($alias, 'process', 'success', 'failure', $input);
+  POE::Kernel->run();
+
+In the above example, C<$p1>, C<$p2>, C<$p3> are executed in order. If all
+processors are run to completion, then the 'success' state (or whatever
+you specified in the third argument to post()) is called. Otherwise,
+the 'failure' state (the fourth argument to post()) is called.
+
+However, sometimes you want to control the execution order. In such cases,
+you can use add()'s third parameter, which is the "decision maker" parameter.
+This argument can be a coderef or an object, and is responsible for returning
+the key for next processor to be run.
+
+  $p->add($name1, $p1, $dm);
+
+For example, if you had stated P1, P2, P3, and you want to only run P2
+if P1 succeeded, then you can do this:
+
+  sub skip_if_p1_failed {
+    my($p, $prdata, $result) = @_;
+
+    # where $p      is the POE::Component::StackedProcessor
+    #       $prdata is the current processor's information (as hashref)
+    #       $result is the return value from the the current processor
+
+    if (!defined $result) {
+      return 'P3';
+    } else {
+      return 'P2';
+    }
+  }
+
+  $p->add(P1 => $p1, \&skip_if_p1_failed);
+  $p->add(P2 => $p2);
+  $p->add(P3 => $p3);
+
+Note, though, that you can use numerical indices to indicate the next
+processor to be run. So instead of the last 5 lines of C<skip_if_p1_failed>,
+you can say:
+
+  if (!defined $result) {
+     return 2;
+  } else {
+     return 1;
+  }
+
+The success/failure callbacks receive the arguments that a POE postback
+state receives. Namely ARG0 maps to the "request" argument list and, and
+ARG1 maps to the "response" argument list.
 
 =head1 METHODS
 
@@ -242,11 +310,6 @@ called. Otherwise $failure_event gets called.
 
 Alias of the StackedProcessor session. (You probably want to set this, because
 you will need to post() to this session to run the processors)
-
-=item Processors
-
-An arrayref of processor objects. Each of these object must have a method
-denoted by "callback_name" (which is by default "process")
 
 =item InlineStates/Packagestates/ObjectStates
 
@@ -260,6 +323,15 @@ execution.
 
 This is a class-method to specify at run time what method name should be
 called on the processor objects. The default is "process".
+
+=head2 alias
+
+Gets the alias given to the session for this stack processor
+
+=head1 CAVEATS
+
+The processor name must *not* look like a number. If it looks like a number,
+then it will be taken as an index in the processor list, not a processor name.
 
 =head1 SEE ALSO
 
