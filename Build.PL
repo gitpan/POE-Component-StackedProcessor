@@ -1,14 +1,15 @@
 #!perl
-# $Id: Build.PL,v 1.5 2004/12/10 22:47:58 daisuke Exp $
+# $Id: Build.PL 4 2004-12-24 04:06:08Z daisuke $
 #
-# Daisuke Maki <daisuke@cpan.org>
+# Daisuke Maki <dmaki@cpan.org>
+# All rights reserved.
 
 use strict;
 use Module::Build; 
 
 my $build = Module::Build->new(
     module_name => 'POE::Component::StackedProcessor',
-    dist_author => 'Daisuke Maki <daisuke@cpan.org>',
+    dist_author => 'Daisuke Maki <dmaki@cpan.org>',
     sign        => 1,
     license     => 'perl',
     create_makefile_pl => 'traditional',
@@ -17,6 +18,7 @@ my $build = Module::Build->new(
     },
     requires    => {
         'Class::Data::Inheritable' => 0,
+        'Class::MethodMaker'       => 0,
         'Params::Validate'         => 0,
         'POE'                      => 0,
     },

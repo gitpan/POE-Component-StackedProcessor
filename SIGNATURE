@@ -14,16 +14,17 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-SHA1 a96adeb1736540a46d950621d9441fc5ab7691a7 Build.PL
-SHA1 517ebedee07868c838429acad642321fc6bccddf MANIFEST
-SHA1 c7ab74c22825d72bec86fbaa1d67197dc70f0cbb META.yml
-SHA1 6f962a8c88ff346bd84616b336602ce86ffa9dd6 lib/POE/Component/StackedProcessor.pm
-SHA1 38a884982cfd9f550e2fbb85e23a6bef7bab04c4 t/01-sanity.t
+SHA1 c175b36fff0575212a73a9db30daad12a54e6d2e Build.PL
+SHA1 0df9087ae00b313d8613ca3873160aabb233bbce Changes
+SHA1 1ca706324b52ca6543bd9addc8800e0f9b4c7758 MANIFEST
+SHA1 b0e52ac43dae23affd200f18eaf0fc753624ea35 META.yml
+SHA1 adce9afdea09349a055b9acdd1ec76fafe95b826 lib/POE/Component/StackedProcessor.pm
+SHA1 d44f4d165c96f52940e267b57306367db700e6f1 t/01-sanity.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.0.4 (GNU/Linux)
 Comment: For info see http://www.gnupg.org
 
-iD8DBQFBuieshB111rlaNnYRAivzAJ9BpxWapLty3sBHbRJawj4S1eGXVgCfVmrK
-H/H9uzoQPD5PjA9pSMJ5uts=
-=fXZ+
+iD8DBQFBy5XOhB111rlaNnYRAg4cAJ413QFQH1xYGQyXiFhLXWD/GYdDEwCeOLV4
+XNOJbvxdN3JKgcdN+6THhKY=
+=pTTa
 -----END PGP SIGNATURE-----

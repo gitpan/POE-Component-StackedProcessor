@@ -1,4 +1,5 @@
 Build.PL
+Changes
 lib/POE/Component/StackedProcessor.pm
 MANIFEST			This list of files
 t/01-sanity.t

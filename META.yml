@@ -1,12 +1,13 @@
 --- #YAML:1.0
 name: POE-Component-StackedProcessor
-version: 0.01
+version: 0.02
 author:
-  - Daisuke Maki <daisuke@cpan.org>
-abstract: Stack Processors In POE
+  - Daisuke Maki <dmaki@cpan.org>
+abstract: Stacked Processors In POE
 license: perl
 requires:
   Class::Data::Inheritable: 0
+  Class::MethodMaker: 0
   POE: 0
   Params::Validate: 0
 build_requires:
@@ -14,5 +15,5 @@ build_requires:
 provides:
   POE::Component::StackedProcessor:
     file: lib/POE/Component/StackedProcessor.pm
-    version: 0.01
-generated_by: Module::Build version 0.2602
+    version: 0.02
+generated_by: Module::Build version 0.2606
