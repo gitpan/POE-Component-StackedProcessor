@@ -1,5 +1,5 @@
 #!perl
-# $Id: 01-sanity.t 6 2005-01-01 11:40:50Z daisuke $
+# $Id: 01-sanity.t 11 2005-04-08 01:06:00Z daisuke $
 #
 # Daisuke Maki <dmaki@cpan.org>
 # All rights reserved.
@@ -63,7 +63,8 @@ sub success
 sub failure
 {
     my($response) = @_[ARG1];
-    my($pr, $prdata, $input) = @$response;
+    my($input, $context, $prdata) = @$response;
+
     ok($input->{ok_to_fail}, "Processed input (failure)");
 
     ok($input->{ok_to_fail} &&

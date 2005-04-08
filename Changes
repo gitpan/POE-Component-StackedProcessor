@@ -1,7 +1,16 @@
 Changes
 =======
 
-0.03 - 1 Jan 2004 "Don't ask why I'm coding on New Year's" Release
+0.04 - 2 Apr 2005
+  - Fix bugs, bugs, bugs
+
+0.04_02 - 23 Mar 2005
+  - Fix failure callback arguments.
+
+0.04_01 - 25 Jan 2005
+  - Add a "context" argument
+
+0.03 - 1 Jan 2005 "Don't ask why I'm coding on New Year's" Release
   - Make stacking more flexible (allow FSA-ish processing)
     This broke the interface again.
   - Previous release for some reason didn't include a Makefile.PL.

@@ -1,11 +1,11 @@
-# $Id: StackedProcessor.pm 6 2005-01-01 11:40:50Z daisuke $
+# $Id: StackedProcessor.pm 9 2005-04-01 23:19:11Z daisuke $
 #
 # Daisuke Maki <dmaki@cpan.org>
 # All rights reserved.
 
 package POE::Component::StackedProcessor;
 use strict;
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 use base qw(Class::Data::Inheritable);
 use Class::MethodMaker
     new_with_init  => 'new',
@@ -37,7 +37,7 @@ sub _InitArgNormalizer
 
 sub _DefaultDecisionMaker
 {
-    my($sp, $pr, $value) = @_;
+    my($sp, $value, $context, $pr) = @_;
     $value ? $pr->{index} + 1 : undef;
 }
 
@@ -101,44 +101,54 @@ sub _stop
 
 sub process
 {
-    my($self, $kernel, $session, $sender, $success_evt, $failure_evt, $input) =
-        @_[OBJECT, KERNEL, SESSION, SENDER, ARG0, ARG1, ARG2];
+    my($self, $kernel, $heap, $session, $sender, $success_evt, $failure_evt, $input, $context) =
+        @_[OBJECT, KERNEL, HEAP, SESSION, SENDER, ARG0, ARG1, ARG2];
 
+    $context ||= {};
     if ($self->processor_list_count <= 0) {
         # Hmm, process was called without any processors being
         # added. Let this pass, but generate a warning
         if ($^W) {
             warn "No processors defined for stacked processor. Passing anyway";
         }
-        return $_[SENDER]->postback($success_evt, $input)->();
+        return $_[SENDER]->postback($success_evt, $input, $context)->();
     }
 
     my($success_cb, $failure_cb);
-    if ($sender->isa('POE::Kernel')) {
+    if (defined $sender && UNIVERSAL::isa($sender, 'POE::Kernel')) {
         # got to be a call to the current session
-        $success_cb = $session->postback($success_evt, $input);
-        $failure_cb = $session->postback($failure_evt, $input);
+        $success_cb = $session->postback($success_evt, $input, $context);
+        $failure_cb = $session->postback($failure_evt, $input, $context);
     } else {
-        $success_cb = $sender->postback($success_evt, $input);
-        $failure_cb = $sender->postback($failure_evt, $input);
+        $success_cb = $sender->postback($success_evt, $input, $context);
+        $failure_cb = $sender->postback($failure_evt, $input, $context);
     }
 
-    # Always start from the first one on the list
-    my $data = $self->processor_list_index(0);
+    my $internal_context = {
+        success_cb => $success_cb,
+        failure_cb => $failure_cb,
+        input      => $input,
+        context    => $context,
+        processor  => $self->processor_list_index(0)
+    };
 
+<<<<<<< .mine
     $kernel->yield(
         'run_processor',
         $success_cb,
         $failure_cb,
         $input,
+        {},
         $data
     );
+=======
+    $kernel->yield('run_processor', $internal_context);
+>>>>>>> .r11
 }
 
 sub add
 {
     my($self, $name, $processor, $dm) = @_;
-
     my $data = {
         name      => $name,
         processor => $processor,
@@ -151,32 +161,70 @@ sub add
 
 sub run_processor
 {
-    my($self, $kernel, $success_evt, $failure_evt, $input, $prdata) =
-        @_[OBJECT, KERNEL, ARG0, ARG1, ARG2, ARG3, ARG4];
+<<<<<<< .mine
+    my($self, $kernel, $success_evt, $failure_evt, $input, $context, $prdata) =
+        @_[OBJECT, KERNEL, ARG0, ARG1, ARG2, ARG3, ARG4, ARG5];
+=======
+    my($self, $kernel, $heap, $internal_context) = @_[OBJECT, KERNEL, HEAP, ARG0];
+>>>>>>> .r11
 
+<<<<<<< .mine
     my $pr    = $prdata->{processor};
     my $cb    = $self->callback_name();
     my $ret   = eval {
         # XXX - need to figure out what to pass to this guy
-        $pr->$cb($input); 
+        $pr->$cb($input, $context); 
+=======
+    my $input   = $internal_context->{input};
+    my $context = $internal_context->{context};
+    my $prdata  = $internal_context->{processor};
+    my $pr      = $prdata->{processor};
+    my $dm      = $prdata->{dm};
+    my $cb      = $self->callback_name();
+
+    my $next = eval {
+        my $ret     = $pr->$cb($input, $context); 
+        return $dm->($self, $ret, $context, $prdata);
+>>>>>>> .r11
     };
     warn if $@;
 
-    my $next_id   = $prdata->{dm}->($self, $prdata, $ret);
+    # failure_cb and success_cb has references to at least one session,
+    # which will put this intance of POE::Kernel into an infinite loop,
+    # unless we manually get rid of it.
+    if ($@ || !defined $next) {
+        warn if $@;
 
+<<<<<<< .mine
     if ($@ || !defined $next_id) {
         warn if $@;
 # XXX - think about what to pass to the failure state. I presume that
 # users may want to know at which state the process failed
-        $failure_evt->($self, $prdata, $input);
+        $failure_evt->($context, $prdata, $input);
+=======
+        my $failure_cb = $internal_context->{failure_cb};
+        undef %$internal_context;
+        $failure_cb->($input, $context, $prdata);
+>>>>>>> .r11
     } else {
-        my $next_data = $next_id =~ /\D/ ?
-            $self->processors($next_id) : $self->processor_list_index($next_id);
+        my $next_data = $next =~ /\D/ ?
+            $self->processors($next) : $self->processor_list_index($next);
 
         if ($next_data) {
-            $kernel->yield('run_processor', $success_evt, $failure_evt, $input, $next_data);
+<<<<<<< .mine
+            $kernel->yield('run_processor', $success_evt, $failure_evt, $input, $context, $next_data);
+=======
+            $internal_context->{processor} = $next_data;
+            $kernel->yield('run_processor', $internal_context);
+>>>>>>> .r11
         } else {
-            $success_evt->($input);
+<<<<<<< .mine
+            $success_evt->($input, $context);
+=======
+            my $success_cb = $internal_context->{success_cb};
+            undef %$internal_context;
+            $success_cb->($input, $context, $prdata);
+>>>>>>> .r11
         }
     }
 }
