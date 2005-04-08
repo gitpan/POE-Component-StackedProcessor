@@ -15,18 +15,18 @@ not run its Makefile.PL or Build.PL.
 Hash: SHA1
 
 SHA1 c175b36fff0575212a73a9db30daad12a54e6d2e Build.PL
-SHA1 42cebe998de2df88e493b32bd2a34c679fb55a7c Changes
+SHA1 20f8035e0413859b8121d10e7b694ede0cf035fc Changes
 SHA1 234971e17e64bfa437353925360706e27e663d02 MANIFEST
-SHA1 04fd4dd5fa10152f70bf485531950664e256e0bf META.yml
+SHA1 d0d80218a8866a543f5181efca72311143dfff87 META.yml
 SHA1 bfcbe6680f0b186559cd948aee52920121986478 Makefile.PL
-SHA1 d1f87b7203f3770e00279857a40730ba74a70706 lib/POE/Component/StackedProcessor.pm
+SHA1 ed5ac57d54cce20576fa8d2793ea59d5ec139ec3 lib/POE/Component/StackedProcessor.pm
 SHA1 40ff275c7dccb033d22d3eeb773cb40d1c308a67 t/01-sanity.t
 SHA1 50ec07f6c6cd5c28ac865151c923c1e6de0ea56c t/02-skip.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.0.4 (GNU/Linux)
 Comment: For info see http://www.gnupg.org
 
-iD8DBQFCVdxVhB111rlaNnYRAmkCAJ0fz1O5I/BFrnTib2cMHNsELh1fXgCgiGSH
-4or/knHkiuqN+wkCzef7ko4=
-=ZM4r
+iD8DBQFCVeKnhB111rlaNnYRAoieAJ9eGi7KMOm5ZudwvqovclNouUUVjwCfWCb0
+PM74Md5RS2M3KTFvy9ySShE=
+=Ov+K
 -----END PGP SIGNATURE-----

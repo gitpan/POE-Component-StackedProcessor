@@ -5,7 +5,7 @@
 
 package POE::Component::StackedProcessor;
 use strict;
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 use base qw(Class::Data::Inheritable);
 use Class::MethodMaker
     new_with_init  => 'new',
@@ -132,18 +132,7 @@ sub process
         processor  => $self->processor_list_index(0)
     };
 
-<<<<<<< .mine
-    $kernel->yield(
-        'run_processor',
-        $success_cb,
-        $failure_cb,
-        $input,
-        {},
-        $data
-    );
-=======
     $kernel->yield('run_processor', $internal_context);
->>>>>>> .r11
 }
 
 sub add
@@ -161,20 +150,8 @@ sub add
 
 sub run_processor
 {
-<<<<<<< .mine
-    my($self, $kernel, $success_evt, $failure_evt, $input, $context, $prdata) =
-        @_[OBJECT, KERNEL, ARG0, ARG1, ARG2, ARG3, ARG4, ARG5];
-=======
     my($self, $kernel, $heap, $internal_context) = @_[OBJECT, KERNEL, HEAP, ARG0];
->>>>>>> .r11
 
-<<<<<<< .mine
-    my $pr    = $prdata->{processor};
-    my $cb    = $self->callback_name();
-    my $ret   = eval {
-        # XXX - need to figure out what to pass to this guy
-        $pr->$cb($input, $context); 
-=======
     my $input   = $internal_context->{input};
     my $context = $internal_context->{context};
     my $prdata  = $internal_context->{processor};
@@ -185,7 +162,6 @@ sub run_processor
     my $next = eval {
         my $ret     = $pr->$cb($input, $context); 
         return $dm->($self, $ret, $context, $prdata);
->>>>>>> .r11
     };
     warn if $@;
 
@@ -195,36 +171,20 @@ sub run_processor
     if ($@ || !defined $next) {
         warn if $@;
 
-<<<<<<< .mine
-    if ($@ || !defined $next_id) {
-        warn if $@;
-# XXX - think about what to pass to the failure state. I presume that
-# users may want to know at which state the process failed
-        $failure_evt->($context, $prdata, $input);
-=======
         my $failure_cb = $internal_context->{failure_cb};
         undef %$internal_context;
         $failure_cb->($input, $context, $prdata);
->>>>>>> .r11
     } else {
         my $next_data = $next =~ /\D/ ?
             $self->processors($next) : $self->processor_list_index($next);
 
         if ($next_data) {
-<<<<<<< .mine
-            $kernel->yield('run_processor', $success_evt, $failure_evt, $input, $context, $next_data);
-=======
             $internal_context->{processor} = $next_data;
             $kernel->yield('run_processor', $internal_context);
->>>>>>> .r11
         } else {
-<<<<<<< .mine
-            $success_evt->($input, $context);
-=======
             my $success_cb = $internal_context->{success_cb};
             undef %$internal_context;
             $success_cb->($input, $context, $prdata);
->>>>>>> .r11
         }
     }
 }
